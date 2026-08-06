@@ -40,7 +40,7 @@ class TestMain:
         assert output.exists()
         with open(output, newline="", encoding="utf-8") as f:
             rows = list(csv.reader(f))
-        assert rows[0][0] == "Name"
+        assert rows[0][0] == "title"
         assert len(rows) == 3  # header + 2 games
 
     def test_min_hours_filters_output(self, tmp_path, mocker):

@@ -9,15 +9,15 @@ from typing import List, Optional, Sequence
 from psn_client import GameRecord
 
 HEADERS: List[str] = [
-    "Name",
-    "Platform",
-    "Time Played",
-    "Completed At",
-    "Platinum",
-    "User Score",
-    "Status",
-    "Favorite",
-    "Review",
+    "title",
+    "hours",
+    "completedAt",
+    "platform",
+    "status",
+    "userScore",
+    "platinum",
+    "steamDeck",
+    "favorite",
 ]
 
 
@@ -40,23 +40,28 @@ def _empty_if_falsy(value: object) -> str:
     return "" if text.lower() in ("none", "null") else text
 
 
+def _bool_str(value: bool) -> str:
+    return "true" if value else "false"
+
+
 def game_record_to_row(game: GameRecord) -> List[str]:
     """Convert a GameRecord into a CSV row matching HEADERS, column for column.
 
-    User Score, Status, and Favorite have no source in the PSN API and are
-    always left empty so GRAVK can determine/apply them on import. Review is
-    never available from PSN and is always empty too.
+    status, userScore, and favorite have no source in the PSN API and are
+    always left empty: an empty/unrecognized status lets GRAVK determine it
+    automatically from hours played, per the GRAVK import template. steamDeck
+    is always "false" since PSN games are never played on Steam Deck.
     """
     return [
         _empty_if_falsy(game.title),
-        _empty_if_falsy(game.platform),
         str(game.hours),
         _empty_if_falsy(game.completed_at),
-        str(bool(game.platinum)),
-        "",  # User Score
-        "",  # Status
-        "",  # Favorite
-        "",  # Review
+        _empty_if_falsy(game.platform),
+        "",  # status - left empty so GRAVK auto-detects it from hours
+        "",  # userScore - no source in the PSN API
+        _bool_str(game.platinum),
+        _bool_str(False),  # steamDeck - PSN games are never Steam Deck
+        "",  # favorite - left empty, defaults to not-favorited in GRAVK
     ]
 
 
