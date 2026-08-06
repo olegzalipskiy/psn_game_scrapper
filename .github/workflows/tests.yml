@@ -1,0 +1,55 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run tests (min 80% coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        id: tests
+        continue-on-error: true
+        run: |
+          pytest tests/ \
+            --cov=. \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=80 \
+            --junitxml=pytest.xml
+
+      - name: Post test & coverage results to PR
+        uses: MishaKav/pytest-coverage-comment@main
+        if: always()
+        with:
+          pytest-xml-coverage-path: ./coverage.xml
+          junitxml-path: ./pytest.xml
+          title: Test results
+          badge-title: Coverage
+
+      - name: Fail job if tests or coverage threshold failed
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "Tests failed or coverage is below the required 80% threshold."
+          exit 1

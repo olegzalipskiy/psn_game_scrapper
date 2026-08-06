@@ -1,5 +1,7 @@
 # psn_game_scrapper
 
+[![Tests](https://github.com/olegzalipskiy/psn_game_scrapper/actions/workflows/tests.yml/badge.svg)](https://github.com/olegzalipskiy/psn_game_scrapper/actions/workflows/tests.yml)
+
 Export your PlayStation Network (PSN) game library — titles, platform, hours
 played, last-played date, and platinum status — to a CSV file ready to import
 into [GRAVK](https://gravk.app).
@@ -128,6 +130,26 @@ never hits the network and never needs a real npsso token. It covers:
 - the `--min-hours` filter
 - invalid/expired npsso token handling
 - exponential-backoff retry behavior on simulated rate-limit (429) errors
+
+To check coverage locally the same way CI does:
+
+```bash
+pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=80
+```
+
+## Continuous integration
+
+Every pull request targeting `master` runs the test suite via
+[GitHub Actions](.github/workflows/tests.yml) and posts a comment on the PR
+with the pass/fail results and coverage report. The build fails — blocking
+the merge — if any test fails or total coverage drops below **80%**. The
+pipeline does not run on plain commits/pushes, only on pull requests into
+`master`.
+
+> **Note:** for the check to actually block merging, the repository's branch
+> protection rule for `master` must have "Require status checks to pass
+> before merging" enabled with the `Run tests (min 80% coverage)` check
+> selected (Settings → Branches).
 
 ## Troubleshooting
 
