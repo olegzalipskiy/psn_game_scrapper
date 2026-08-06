@@ -52,32 +52,35 @@ class TestGameRecordToRow:
 
     def test_platinum_true(self):
         row = game_record_to_row(make_game(platinum=True))
-        assert row[HEADERS.index("Platinum")] == "True"
+        assert row[HEADERS.index("platinum")] == "true"
 
     def test_platinum_false(self):
         row = game_record_to_row(make_game(platinum=False))
-        assert row[HEADERS.index("Platinum")] == "False"
+        assert row[HEADERS.index("platinum")] == "false"
+
+    def test_steam_deck_is_always_false(self):
+        row = game_record_to_row(make_game())
+        assert row[HEADERS.index("steamDeck")] == "false"
 
     def test_empty_completed_at_is_empty_string_not_none(self):
         row = game_record_to_row(make_game(completed_at=""))
-        assert row[HEADERS.index("Completed At")] == ""
+        assert row[HEADERS.index("completedAt")] == ""
 
     def test_none_completed_at_is_empty_string_not_none(self):
         row = game_record_to_row(make_game(completed_at=None))
-        value = row[HEADERS.index("Completed At")]
+        value = row[HEADERS.index("completedAt")]
         assert value == ""
         assert value != "None"
 
     def test_optional_columns_always_blank(self):
         row = game_record_to_row(make_game())
-        assert row[HEADERS.index("User Score")] == ""
-        assert row[HEADERS.index("Status")] == ""
-        assert row[HEADERS.index("Favorite")] == ""
-        assert row[HEADERS.index("Review")] == ""
+        assert row[HEADERS.index("userScore")] == ""
+        assert row[HEADERS.index("status")] == ""
+        assert row[HEADERS.index("favorite")] == ""
 
     def test_hours_written_as_plain_int_string(self):
         row = game_record_to_row(make_game(hours=123))
-        assert row[HEADERS.index("Time Played")] == "123"
+        assert row[HEADERS.index("hours")] == "123"
 
 
 class TestWriteCsv:
@@ -88,15 +91,15 @@ class TestWriteCsv:
             reader = csv.reader(f)
             header_row = next(reader)
         assert header_row == [
-            "Name",
-            "Platform",
-            "Time Played",
-            "Completed At",
-            "Platinum",
-            "User Score",
-            "Status",
-            "Favorite",
-            "Review",
+            "title",
+            "hours",
+            "completedAt",
+            "platform",
+            "status",
+            "userScore",
+            "platinum",
+            "steamDeck",
+            "favorite",
         ]
 
     def test_writes_expected_row_count_and_returns_it(self, tmp_path):

@@ -70,21 +70,27 @@ error message otherwise.
 
 ## Output CSV format
 
+Matches the GRAVK import template exactly (`title,hours,completedAt,platform,
+status,userScore,platinum,steamDeck,favorite`):
+
 - UTF-8 encoded, comma-separated, one header row followed by one row per game.
 - Empty/unknown optional fields are written as an empty string, never the
   text `None` or `null`.
 
-| Column        | Source                                                             | Notes |
-|---------------|----------------------------------------------------------------------|-------|
-| `Name`        | `title_stats().name`                                                  | |
-| `Platform`    | `title_stats().category`                                             | `PS4`/`PS5` are both mapped to `PlayStation`; anything else passes through unchanged |
-| `Time Played` | `title_stats().play_duration`                                        | Rounded to the nearest whole hour |
-| `Completed At`| `title_stats().last_played_date_time`                                 | Date of the most recent play session (`YYYY-MM-DD`), empty if PSN has no record of it |
-| `Platinum`    | `trophy_titles().earned_trophies.platinum`, matched by normalized name | `True`/`False` |
-| `User Score`  | —                                                                     | Always empty — PSN has no such field |
-| `Status`      | —                                                                     | Always empty — left for GRAVK to determine automatically from hours played |
-| `Favorite`    | —                                                                     | Always empty — left as a GRAVK default |
-| `Review`      | —                                                                     | Always empty — PSN has no such field |
+| Column       | Source                                                                  | Notes |
+|--------------|--------------------------------------------------------------------------|-------|
+| `title`      | `title_stats().name`                                                     | Required field |
+| `hours`      | `title_stats().play_duration`                                            | Rounded to the nearest whole hour |
+| `completedAt`| `title_stats().last_played_date_time`                                    | Date of the most recent play session (`YYYY-MM-DD`), empty if PSN has no record of it |
+| `platform`   | `title_stats().category`                                                 | `PS4`/`PS5` are both mapped to `PlayStation`; anything else passes through unchanged |
+| `status`     | —                                                                        | Always empty — left for GRAVK to auto-detect from hours played, per the GRAVK template's own rule |
+| `userScore`  | —                                                                        | Always empty — PSN has no such field |
+| `platinum`   | `trophy_titles().earned_trophies.platinum`, matched by normalized name    | `true`/`false` |
+| `steamDeck`  | —                                                                        | Always `false` — PSN games are never played on Steam Deck |
+| `favorite`   | —                                                                        | Always empty — left as a GRAVK default |
+
+Note: GRAVK's own `review` field is not part of the import template, so this
+exporter does not produce one either.
 
 ## Known limitation
 
@@ -92,9 +98,9 @@ Title matching between the "titles you've played" endpoint and the "trophy
 summaries" endpoint is done by normalizing and comparing title names (case,
 whitespace, `™`/`®` symbols). PSN does not expose one shared ID between these
 two endpoints for a user's whole library. In the rare case a game's name
-differs meaningfully between the two responses, `Platinum` will read `False`
+differs meaningfully between the two responses, `platinum` will read `false`
 for that title even if a platinum was actually earned. Everything else
-(`Name`, `Platform`, `Time Played`, `Completed At`) is unaffected, since it
+(`title`, `hours`, `completedAt`, `platform`) is unaffected, since it
 comes entirely from `title_stats()`.
 
 ## Project layout
