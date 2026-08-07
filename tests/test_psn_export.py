@@ -3,8 +3,8 @@ import os
 
 import pytest
 
-import psn_export
-from psn_client import GameRecord, PSNAuthenticationError
+from psn_game_scrapper import cli as psn_export
+from psn_game_scrapper.client import GameRecord, PSNAuthenticationError
 
 
 class TestResolveNpsso:
@@ -32,7 +32,7 @@ class TestMain:
         output = tmp_path / "games.csv"
         mock_client = mocker.MagicMock()
         mock_client.fetch_library.return_value = self._sample_games()
-        mocker.patch("psn_export.PSNClient", return_value=mock_client)
+        mocker.patch("psn_game_scrapper.cli.PSNClient", return_value=mock_client)
 
         exit_code = psn_export.main(["--npsso", "f" * 64, "--output", str(output)])
 
@@ -47,7 +47,7 @@ class TestMain:
         output = tmp_path / "games.csv"
         mock_client = mocker.MagicMock()
         mock_client.fetch_library.return_value = self._sample_games()
-        mocker.patch("psn_export.PSNClient", return_value=mock_client)
+        mocker.patch("psn_game_scrapper.cli.PSNClient", return_value=mock_client)
 
         exit_code = psn_export.main(
             ["--npsso", "f" * 64, "--output", str(output), "--min-hours", "1"]
@@ -63,7 +63,7 @@ class TestMain:
         monkeypatch.chdir(tmp_path)
         mock_client = mocker.MagicMock()
         mock_client.fetch_library.return_value = self._sample_games()
-        mocker.patch("psn_export.PSNClient", return_value=mock_client)
+        mocker.patch("psn_game_scrapper.cli.PSNClient", return_value=mock_client)
 
         exit_code = psn_export.main(["--npsso", "f" * 64])
 
@@ -73,7 +73,7 @@ class TestMain:
 
     def test_authentication_error_on_construction_returns_nonzero(self, mocker):
         mocker.patch(
-            "psn_export.PSNClient",
+            "psn_game_scrapper.cli.PSNClient",
             side_effect=PSNAuthenticationError("invalid or expired npsso token"),
         )
         exit_code = psn_export.main(["--npsso", "bad-token"])
@@ -82,6 +82,6 @@ class TestMain:
     def test_authentication_error_during_fetch_returns_nonzero(self, mocker):
         mock_client = mocker.MagicMock()
         mock_client.fetch_library.side_effect = PSNAuthenticationError("expired mid-run")
-        mocker.patch("psn_export.PSNClient", return_value=mock_client)
+        mocker.patch("psn_game_scrapper.cli.PSNClient", return_value=mock_client)
         exit_code = psn_export.main(["--npsso", "f" * 64])
         assert exit_code == 1

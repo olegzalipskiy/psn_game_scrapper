@@ -6,7 +6,7 @@ import csv
 from datetime import date
 from typing import List, Optional, Sequence
 
-from psn_client import GameRecord
+from .client import GameRecord
 
 HEADERS: List[str] = [
     "title",
