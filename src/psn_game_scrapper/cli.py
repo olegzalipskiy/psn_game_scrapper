@@ -2,7 +2,7 @@
 """CLI entry point: export a PSN game library to a GRAVK-compatible CSV.
 
 Usage:
-    python psn_export.py --npsso <token> --output games.csv [--min-hours 0]
+    psn-export --npsso <token> --output games.csv [--min-hours 0]
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ import os
 import sys
 from typing import List, Optional
 
-from csv_writer import generate_default_filename, write_csv
-from psn_client import PSNAuthenticationError, PSNClient
+from .client import PSNAuthenticationError, PSNClient
+from .csv_writer import generate_default_filename, write_csv
 
 logger = logging.getLogger("psn_export")
 

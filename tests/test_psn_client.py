@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from psn_client import (
+from psn_game_scrapper.client import (
     GameRecord,
     PSNAuthenticationError,
     PSNClient,
@@ -112,14 +112,14 @@ def _make_mock_func(**kwargs) -> MagicMock:
 
 class TestRetryWithBackoff:
     def test_returns_result_immediately_on_success(self, mocker):
-        sleep_mock = mocker.patch("psn_client.time.sleep")
+        sleep_mock = mocker.patch("psn_game_scrapper.client.time.sleep")
         func = _make_mock_func(return_value="ok")
         wrapped = retry_with_backoff(max_retries=3, base_delay=0.01)(func)
         assert wrapped() == "ok"
         sleep_mock.assert_not_called()
 
     def test_retries_on_rate_limit_then_succeeds(self, mocker):
-        sleep_mock = mocker.patch("psn_client.time.sleep")
+        sleep_mock = mocker.patch("psn_game_scrapper.client.time.sleep")
         func = _make_mock_func(
             side_effect=[
                 PSNAWPTooManyRequestsError("rate limited"),
@@ -137,13 +137,13 @@ class TestRetryWithBackoff:
         sleep_mock.assert_any_call(2.0)
 
     def test_retries_on_server_error(self, mocker):
-        mocker.patch("psn_client.time.sleep")
+        mocker.patch("psn_game_scrapper.client.time.sleep")
         func = _make_mock_func(side_effect=[PSNAWPServerError("boom"), "ok"])
         wrapped = retry_with_backoff(max_retries=3, base_delay=0.01)(func)
         assert wrapped() == "ok"
 
     def test_raises_after_exhausting_retries(self, mocker):
-        sleep_mock = mocker.patch("psn_client.time.sleep")
+        sleep_mock = mocker.patch("psn_game_scrapper.client.time.sleep")
         func = _make_mock_func(side_effect=PSNAWPTooManyRequestsError("rate limited"))
         wrapped = retry_with_backoff(max_retries=2, base_delay=0.01)(func)
         with pytest.raises(PSNAWPTooManyRequestsError):
@@ -152,7 +152,7 @@ class TestRetryWithBackoff:
         assert sleep_mock.call_count == 2
 
     def test_does_not_retry_unrelated_errors(self, mocker):
-        sleep_mock = mocker.patch("psn_client.time.sleep")
+        sleep_mock = mocker.patch("psn_game_scrapper.client.time.sleep")
         func = _make_mock_func(side_effect=ValueError("not a PSN error"))
         wrapped = retry_with_backoff(max_retries=3, base_delay=0.01)(func)
         with pytest.raises(ValueError):
@@ -172,7 +172,7 @@ class TestPSNClientAuthentication:
 
     def test_invalid_token_format_raises_authentication_error(self, mocker):
         mocker.patch(
-            "psn_client.PSNAWP",
+            "psn_game_scrapper.client.PSNAWP",
             side_effect=PSNAWPInvalidTokenError("bad token"),
         )
         with pytest.raises(PSNAuthenticationError):
@@ -180,7 +180,7 @@ class TestPSNClientAuthentication:
 
     def test_expired_or_invalid_token_raises_authentication_error(self, mocker):
         mocker.patch(
-            "psn_client.PSNAWP",
+            "psn_game_scrapper.client.PSNAWP",
             side_effect=PSNAWPAuthenticationError("expired"),
         )
         with pytest.raises(PSNAuthenticationError):
@@ -189,7 +189,7 @@ class TestPSNClientAuthentication:
     def test_valid_token_constructs_client(self, mocker):
         fake_psnawp_instance = MagicMock()
         fake_psnawp_instance.me.return_value = MagicMock()
-        mocker.patch("psn_client.PSNAWP", return_value=fake_psnawp_instance)
+        mocker.patch("psn_game_scrapper.client.PSNAWP", return_value=fake_psnawp_instance)
         client = PSNClient("f" * 64)
         assert client is not None
 
@@ -221,7 +221,7 @@ class TestPSNClientFetchLibrary:
         fake_inner_client.trophy_titles.return_value = iter(trophy_titles)
         fake_psnawp_instance = MagicMock()
         fake_psnawp_instance.me.return_value = fake_inner_client
-        mocker.patch("psn_client.PSNAWP", return_value=fake_psnawp_instance)
+        mocker.patch("psn_game_scrapper.client.PSNAWP", return_value=fake_psnawp_instance)
         return PSNClient("f" * 64)
 
     def test_merges_title_stats_with_platinum_data(self, mocker):
@@ -259,7 +259,7 @@ class TestPSNClientFetchLibrary:
         fake_inner_client.title_stats.side_effect = PSNAWPAuthenticationError("expired")
         fake_psnawp_instance = MagicMock()
         fake_psnawp_instance.me.return_value = fake_inner_client
-        mocker.patch("psn_client.PSNAWP", return_value=fake_psnawp_instance)
+        mocker.patch("psn_game_scrapper.client.PSNAWP", return_value=fake_psnawp_instance)
 
         client = PSNClient("f" * 64)
         with pytest.raises(PSNAuthenticationError):

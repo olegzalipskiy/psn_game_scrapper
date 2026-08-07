@@ -22,13 +22,40 @@ PlayStation App uses. There is no official PSN API, so this relies on the
 
 ## Installation
 
+### pip / pipx
+
 ```bash
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install psn-game-scrapper
+# or, isolated from your other Python packages:
+pipx install psn-game-scrapper
 ```
 
-Requires Python 3.9+.
+This installs a `psn-export` command on your `PATH`. Requires Python 3.9+.
+
+Not published to PyPI yet? Install straight from GitHub:
+
+```bash
+pipx install git+https://github.com/olegzalipskiy/psn_game_scrapper.git
+```
+
+### Homebrew
+
+```bash
+brew tap olegzalipskiy/psn_game_scrapper https://github.com/olegzalipskiy/psn_game_scrapper
+brew install psn-game-scrapper
+```
+
+This also installs the `psn-export` command. See [Formula/psn-game-scrapper.rb](Formula/psn-game-scrapper.rb).
+
+### From source (for development)
+
+```bash
+git clone https://github.com/olegzalipskiy/psn_game_scrapper.git
+cd psn_game_scrapper
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -e ".[dev]"
+```
 
 ## Getting your npsso token
 
@@ -46,18 +73,21 @@ Keep this token secret — it grants access to your PSN account.
 
 ```bash
 # Pass the token directly
-python psn_export.py --npsso <your-64-char-npsso-token> --output games.csv
+psn-export --npsso <your-64-char-npsso-token> --output games.csv
 
 # Or set it as an environment variable
 export PSN_NPSSO=<your-64-char-npsso-token>
-python psn_export.py --output games.csv
+psn-export --output games.csv
 
 # Only export games with at least 1 hour of playtime
-python psn_export.py --output games.csv --min-hours 1
+psn-export --output games.csv --min-hours 1
 
 # Omit --output to get the default name: psn_library_export_{YYYY-MM-DD}.csv
-python psn_export.py
+psn-export
 ```
+
+Running from a source checkout without installing the console script also
+works: `python -m psn_game_scrapper` (same flags).
 
 ### CLI options
 
@@ -108,15 +138,18 @@ comes entirely from `title_stats()`.
 ## Project layout
 
 ```
-psn_client.py    # PSNAWP wrapper: auth, fetching, retry/backoff, data mapping
-csv_writer.py     # CSV formatting/writing, min-hours filtering
-psn_export.py     # CLI entry point
-tests/            # pytest suite (fully mocked, no network/token required)
+src/psn_game_scrapper/
+    client.py       # PSNAWP wrapper: auth, fetching, retry/backoff, data mapping
+    csv_writer.py   # CSV formatting/writing, min-hours filtering
+    cli.py          # CLI entry point (the `psn-export` console script)
+Formula/            # Homebrew formula
+tests/               # pytest suite (fully mocked, no network/token required)
 ```
 
 ## Running the tests
 
 ```bash
+pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
@@ -134,7 +167,7 @@ never hits the network and never needs a real npsso token. It covers:
 To check coverage locally the same way CI does:
 
 ```bash
-pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=80
+pytest tests/ --cov=psn_game_scrapper --cov-report=term-missing --cov-fail-under=80
 ```
 
 ## Continuous integration
@@ -150,6 +183,22 @@ pipeline does not run on plain commits/pushes, only on pull requests into
 > protection rule for `master` must have "Require status checks to pass
 > before merging" enabled with the `Run tests (min 80% coverage)` check
 > selected (Settings → Branches).
+
+## Releasing (maintainers)
+
+1. Bump `version` in `pyproject.toml` and `__version__` in
+   `src/psn_game_scrapper/__init__.py`.
+2. Tag the release: `git tag v0.1.0 && git push origin v0.1.0`. This
+   triggers [`.github/workflows/publish.yml`](.github/workflows/publish.yml),
+   which builds the package and publishes it to PyPI via
+   [trusted publishing](https://docs.pypi.org/trusted-publishers/) — no
+   API token needed, but the PyPI project must have a trusted publisher
+   configured for this repo/workflow first (one-time setup on pypi.org).
+3. Update [Formula/psn-game-scrapper.rb](Formula/psn-game-scrapper.rb):
+   point `url` at the new tag's tarball and refresh `sha256` with
+   `curl -sL <tarball-url> | shasum -a 256`. If any dependency version
+   changed, refresh its `resource` block the same way (URL + sha256 from
+   `https://pypi.org/pypi/<package>/<version>/json`).
 
 ## Troubleshooting
 

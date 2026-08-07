@@ -3,14 +3,14 @@ from datetime import date
 
 import pytest
 
-from csv_writer import (
+from psn_game_scrapper.csv_writer import (
     HEADERS,
     filter_by_min_hours,
     game_record_to_row,
     generate_default_filename,
     write_csv,
 )
-from psn_client import GameRecord
+from psn_game_scrapper.client import GameRecord
 
 
 def make_game(**overrides) -> GameRecord:
