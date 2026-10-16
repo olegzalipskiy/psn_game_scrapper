@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=68", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "psn-game-scrapper"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Export your PlayStation Network (PSN) game library to a GRAVK-compatible CSV file."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -39,6 +39,9 @@ Issues = "https://github.com/olegzalipskiy/psn_game_scrapper/issues"
 
 [project.scripts]
 psn-export = "psn_game_scrapper.cli:main"
+
+[tool.setuptools_scm]
+# Version comes from the latest git tag (v0.0.2 -> 0.0.2); no manual bumps.
 
 [tool.setuptools.packages.find]
 where = ["src"]

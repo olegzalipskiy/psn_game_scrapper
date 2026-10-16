@@ -191,15 +191,16 @@ pipeline does not run on plain commits/pushes, only on pull requests into
 
 ## Releasing (maintainers)
 
-1. Bump `version` in `pyproject.toml` and `__version__` in
-   `src/psn_game_scrapper/__init__.py`.
-2. Tag the release: `git tag v0.1.0 && git push origin v0.1.0`. This
-   triggers [`.github/workflows/publish.yml`](.github/workflows/publish.yml),
+1. Tag the release: `git tag v0.1.0 && git push origin v0.1.0`. The package
+   version is derived from the tag by `setuptools-scm` (`v0.1.0` -> `0.1.0`),
+   so there is no version to bump in the source. Pick a version higher than
+   the last one on PyPI; PyPI never accepts the same version twice. Pushing the
+   tag triggers [`.github/workflows/publish.yml`](.github/workflows/publish.yml),
    which builds the package and publishes it to PyPI via
    [trusted publishing](https://docs.pypi.org/trusted-publishers/) — no
    API token needed, but the PyPI project must have a trusted publisher
    configured for this repo/workflow first (one-time setup on pypi.org).
-3. Update [Formula/psn-game-scrapper.rb](Formula/psn-game-scrapper.rb):
+2. Update [Formula/psn-game-scrapper.rb](Formula/psn-game-scrapper.rb):
    point `url` at the new tag's tarball and refresh `sha256` with
    `curl -sL <tarball-url> | shasum -a 256`. If any dependency version
    changed, refresh its `resource` block the same way (URL + sha256 from
