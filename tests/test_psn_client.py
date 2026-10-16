@@ -52,6 +52,13 @@ class TestHoursFromDuration:
     def test_none_is_zero(self):
         assert hours_from_duration(None) == 0
 
+    def test_half_hour_rounds_up(self):
+        assert hours_from_duration(timedelta(minutes=90)) == 2
+        assert hours_from_duration(timedelta(hours=2, minutes=30)) == 3
+
+    def test_brief_play_counts_as_one_hour(self):
+        assert hours_from_duration(timedelta(minutes=25)) == 1
+
     def test_rounds_down_below_half_hour(self):
         assert hours_from_duration(timedelta(hours=2, minutes=20)) == 2
 
@@ -247,12 +254,25 @@ class TestPSNClientFetchLibrary:
         assert astro.platinum is False
         assert astro.completed_at == ""
 
-    def test_progress_callback_invoked_per_title(self, mocker):
+    def test_progress_callback_reports_fetch_stages(self, mocker):
         titles = [_fake_title_stats(f"Game {i}", "PS4", 1) for i in range(3)]
-        client = self._make_client(mocker, titles, [])
+        trophies = [_fake_trophy_title("Game 0", 0), _fake_trophy_title("Game 1", 0)]
+        client = self._make_client(mocker, titles, trophies)
         calls = []
-        client.fetch_library(progress_callback=lambda done, total: calls.append((done, total)))
-        assert calls == [(1, 3), (2, 3), (3, 3)]
+        client.fetch_library(progress_callback=lambda stage, n: calls.append((stage, n)))
+        assert calls == [
+            ("titles", 1), ("titles", 2), ("titles", 3),
+            ("trophies", 1), ("trophies", 2),
+        ]
+
+    def test_platinum_in_any_duplicate_trophy_list_counts(self, mocker):
+        titles = [_fake_title_stats("Ratchet & Clank", "PS5", 10)]
+        trophies = [
+            _fake_trophy_title("Ratchet & Clank", platinum_count=1),
+            _fake_trophy_title("Ratchet & Clank", platinum_count=0),
+        ]
+        games = self._make_client(mocker, titles, trophies).fetch_library()
+        assert games[0].platinum is True
 
     def test_auth_error_during_fetch_is_wrapped(self, mocker):
         fake_inner_client = MagicMock()

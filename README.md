@@ -82,6 +82,9 @@ psn-export --output games.csv
 # Only export games with at least 1 hour of playtime
 psn-export --output games.csv --min-hours 1
 
+# Overwrite an existing output file (by default the export refuses to)
+psn-export --output games.csv --force
+
 # Omit --output to get the default name: psn_library_export_{YYYY-MM-DD}.csv
 psn-export
 ```
@@ -96,6 +99,8 @@ works: `python -m psn_game_scrapper` (same flags).
 | `--npsso`     | No*      | `$PSN_NPSSO` environment variable           | PSN npsso token                                 |
 | `--output`    | No       | `psn_library_export_{YYYY-MM-DD}.csv`       | Output CSV file path                            |
 | `--min-hours` | No       | `0` (export everything)                     | Only include games with at least this many hours |
+
+| `--force`     | No       | off                                         | Overwrite the output file if it already exists   |
 
 \* Either `--npsso` or `PSN_NPSSO` must be set; the script exits with an
 error message otherwise.
@@ -112,7 +117,7 @@ status,userScore,platinum,steamDeck,favorite`):
 | Column       | Source                                                                  | Notes |
 |--------------|--------------------------------------------------------------------------|-------|
 | `title`      | `title_stats().name`                                                     | Required field |
-| `hours`      | `title_stats().play_duration`                                            | Rounded to the nearest whole hour |
+| `hours`      | `title_stats().play_duration`                                            | Rounded half-up to whole hours; any non-zero playtime counts as at least 1 |
 | `completedAt`| `title_stats().last_played_date_time`                                    | Date of the most recent play session (`YYYY-MM-DD`), empty if PSN has no record of it |
 | `platform`   | `title_stats().category`                                                 | `PS4`/`PS5` are both mapped to `PlayStation`; anything else passes through unchanged |
 | `status`     | —                                                                        | Always empty — left for GRAVK to auto-detect from hours played, per the GRAVK template's own rule |
