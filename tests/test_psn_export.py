@@ -4,6 +4,8 @@ import os
 import pytest
 
 from psn_game_scrapper import cli as psn_export
+from psnawp_api.core.psnawp_exceptions import PSNAWPServerError
+
 from psn_game_scrapper.client import GameRecord, PSNAuthenticationError
 
 
@@ -85,3 +87,58 @@ class TestMain:
         mocker.patch("psn_game_scrapper.cli.PSNClient", return_value=mock_client)
         exit_code = psn_export.main(["--npsso", "f" * 64])
         assert exit_code == 1
+
+    def _patch_client(self, mocker):
+        mock_client = mocker.MagicMock()
+        mock_client.fetch_library.return_value = self._sample_games()
+        mocker.patch("psn_game_scrapper.cli.PSNClient", return_value=mock_client)
+        return mock_client
+
+    def test_existing_output_is_not_overwritten(self, tmp_path, mocker):
+        output = tmp_path / "games.csv"
+        output.write_text("keep me")
+        client_cls = mocker.patch("psn_game_scrapper.cli.PSNClient")
+        assert psn_export.main(["--npsso", "f" * 64, "--output", str(output)]) == 1
+        assert output.read_text() == "keep me"
+        client_cls.assert_not_called()
+
+    def test_force_overwrites_existing_output(self, tmp_path, mocker):
+        output = tmp_path / "games.csv"
+        output.write_text("old")
+        self._patch_client(mocker)
+        assert psn_export.main(["--npsso", "f" * 64, "--output", str(output), "--force"]) == 0
+        assert output.read_text().startswith("title,")
+
+    def test_negative_min_hours_rejected(self):
+        with pytest.raises(SystemExit):
+            psn_export.parse_args(["--min-hours", "-1"])
+
+    def test_non_integer_min_hours_rejected(self):
+        with pytest.raises(SystemExit):
+            psn_export.parse_args(["--min-hours", "abc"])
+
+    def test_psn_api_error_returns_nonzero(self, mocker):
+        mock_client = mocker.MagicMock()
+        mock_client.fetch_library.side_effect = PSNAWPServerError("boom")
+        mocker.patch("psn_game_scrapper.cli.PSNClient", return_value=mock_client)
+        assert psn_export.main(["--npsso", "f" * 64]) == 1
+
+    def test_unwritable_output_returns_nonzero(self, tmp_path, mocker):
+        self._patch_client(mocker)
+        bad = tmp_path / "missing_dir" / "games.csv"
+        assert psn_export.main(["--npsso", "f" * 64, "--output", str(bad)]) == 1
+
+    def test_progress_logging_every_25(self, tmp_path, mocker, caplog):
+        mock_client = mocker.MagicMock()
+
+        def fake_fetch(progress_callback):
+            for n in (1, 25, 50):
+                progress_callback("titles", n)
+            return self._sample_games()
+
+        mock_client.fetch_library.side_effect = fake_fetch
+        mocker.patch("psn_game_scrapper.cli.PSNClient", return_value=mock_client)
+        with caplog.at_level("INFO", logger="psn_export"):
+            psn_export.main(["--npsso", "f" * 64, "--output", str(tmp_path / "g.csv")])
+        assert "Fetched 25 titles..." in caplog.text
+        assert "Fetched 1 titles..." not in caplog.text

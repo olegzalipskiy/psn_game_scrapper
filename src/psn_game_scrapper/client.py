@@ -12,7 +12,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Iterable, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, TypeVar
 
 from psnawp_api import PSNAWP
 from psnawp_api.core.psnawp_exceptions import (
@@ -110,10 +110,17 @@ def map_platform(category: Any) -> str:
 
 
 def hours_from_duration(duration: Optional[timedelta]) -> int:
-    """Convert a play-duration timedelta into whole hours, rounded to the nearest hour."""
+    """Convert a play-duration timedelta into whole hours.
+
+    Rounds half up to the nearest hour, but any non-zero playtime counts as at
+    least 1 hour so briefly-played games are not reported as never played.
+    """
     if duration is None:
         return 0
-    return round(duration.total_seconds() / 3600)
+    seconds = duration.total_seconds()
+    if seconds <= 0:
+        return 0
+    return max(1, int(seconds / 3600 + 0.5))
 
 
 def has_platinum(earned_trophies: Any) -> bool:
@@ -137,6 +144,16 @@ def format_completed_at(dt: Optional[datetime]) -> str:
     if dt is None:
         return ""
     return dt.date().isoformat()
+
+
+def _collect(items: Iterable[T], on_item: Optional[Callable[[int], None]]) -> List[T]:
+    """Drain a (lazily paginated) iterable, reporting the running count."""
+    result: List[T] = []
+    for item in items:
+        result.append(item)
+        if on_item is not None:
+            on_item(len(result))
+    return result
 
 
 class PSNClient:
@@ -164,42 +181,52 @@ class PSNClient:
             ) from exc
 
     @retry_with_backoff()
-    def _fetch_title_stats(self) -> List[Any]:
-        return list(self._client.title_stats())
+    def _fetch_title_stats(self, on_item: Optional[Callable[[int], None]] = None) -> List[Any]:
+        return _collect(self._client.title_stats(), on_item)
 
     @retry_with_backoff()
-    def _fetch_trophy_titles(self) -> List[Any]:
-        return list(self._client.trophy_titles())
+    def _fetch_trophy_titles(self, on_item: Optional[Callable[[int], None]] = None) -> List[Any]:
+        return _collect(self._client.trophy_titles(), on_item)
 
     def fetch_library(
         self,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Optional[Callable[[str, int], None]] = None,
     ) -> List[GameRecord]:
         """Fetch the full game library, merged with platinum trophy data.
 
         :param progress_callback: Optional callback invoked as
-            ``progress_callback(processed_count, total_count)`` after each title.
+            ``progress_callback(stage, fetched_count)`` after each item is
+            fetched from PSN, where ``stage`` is ``"titles"`` or ``"trophies"``.
+            The total is not known up front, as PSN paginates both lists.
         """
+
+        def reporter(stage: str) -> Optional[Callable[[int], None]]:
+            if progress_callback is None:
+                return None
+            return lambda count: progress_callback(stage, count)
+
         try:
-            titles = self._fetch_title_stats()
-            trophy_titles = self._fetch_trophy_titles()
+            titles = self._fetch_title_stats(reporter("titles"))
+            trophy_titles = self._fetch_trophy_titles(reporter("trophies"))
         except PSNAWPAuthenticationError as exc:
             raise PSNAuthenticationError(
                 "PSN authentication failed while fetching data - the npsso "
                 "token likely expired mid-run. Generate a fresh token and retry."
             ) from exc
 
-        platinum_by_name = {
-            normalize_title_name(trophy_title.title_name): has_platinum(
+        # The same name can appear several times (e.g. PS4 and PS5 trophy
+        # lists); a platinum earned in any of them counts.
+        platinum_by_name: Dict[str, bool] = {}
+        for trophy_title in trophy_titles:
+            if not trophy_title.title_name:
+                continue
+            key = normalize_title_name(trophy_title.title_name)
+            platinum_by_name[key] = platinum_by_name.get(key, False) or has_platinum(
                 trophy_title.earned_trophies
             )
-            for trophy_title in trophy_titles
-            if trophy_title.title_name
-        }
 
         records: List[GameRecord] = []
-        total = len(titles)
-        for index, title in enumerate(titles, start=1):
+        for title in titles:
             name = title.name or ""
             records.append(
                 GameRecord(
@@ -210,7 +237,5 @@ class PSNClient:
                     platinum=platinum_by_name.get(normalize_title_name(name), False),
                 )
             )
-            if progress_callback is not None:
-                progress_callback(index, total)
 
         return records
